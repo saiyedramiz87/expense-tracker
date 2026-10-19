@@ -1,0 +1,307 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Expense Tracker</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f6fb;
+            margin: 0;
+            padding: 20px;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 30px auto;
+            background: white;
+            padding: 24px;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px #00000010;
+        }
+
+        h1 { margin-top: 0; }
+        .subtitle { color: #64748b; }
+
+        .total {
+            background: #e8f2ff;
+            padding: 18px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .total small { color: #475569; }
+        .total h2 { margin: 8px 0 0; color: #155eef; }
+
+        label {
+            display: block;
+            margin: 14px 0 6px;
+            font-weight: bold;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        input, select {
+            border: 1px solid #cbd5e1;
+            background: white;
+        }
+
+        button {
+            border: none;
+            background: #155eef;
+            color: white;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+
+        button:disabled { opacity: 0.6; }
+
+        .expense {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 14px 0;
+        }
+
+        .expense small {
+            display: block;
+            color: #64748b;
+            margin-top: 5px;
+        }
+
+        .expense button {
+            width: auto;
+            margin: 0;
+            padding: 8px 12px;
+            background: #dc2626;
+            font-size: 14px;
+        }
+
+        #status { margin-top: 14px; }
+
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .container { padding: 18px; margin: 10px auto; }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1>My Expense Tracker</h1>
+        <p class="subtitle">Record and manage your daily expenses.</p>
+
+        
+<section class="total">
+    <small>Total expenses</small>
+    <h2 id="total">₹0.00</h2>
+</section>
+
+<section class="category-summary">
+    <h3>Spending by Category</h3>
+    <div id="category-totals">
+        Loading category totals...
+    </div>
+</section>
+
+
+        <form id="expense-form">
+           <label for="title">Expense name</label>
+<input id="title" required placeholder="e.g. Petrol">
+
+            <label for="expense-date">Expense date</label>
+
+            <input id="expense-date" type="date" required>
+
+            <label for="category">Category</label>
+            <select id="category">
+                <option>Food</option>
+                <option>Fuel</option>
+                <option>Travel</option>
+                <option>Shopping</option>
+                <option>Utilities</option>
+                <option>Other</option>
+            </select>
+
+            <label for="amount">Amount (₹)</label>
+            <input id="amount" type="number" min="0.01"
+                   step="0.01" required placeholder="e.g. 510">
+
+            <button id="add-button" type="submit">Add Expense</button>
+        </form>
+
+        <p id="status" role="status"></p>
+
+        <h3>Expense History</h3>
+        <div id="expenses">Loading expenses...</div>
+    </main>
+
+    <script>
+        const API = "http://127.0.0.1:8000";
+        const form = document.getElementById("expense-form");
+        const statusBox = document.getElementById("status");
+        const addButton = document.getElementById("add-button");
+
+        async function loadExpenses() {
+            const response = await fetch(`${API}/expenses`);
+            if (!response.ok) throw new Error("Could not load expenses.");
+
+            const expenses = await response.json();
+            
+            const categoryTotals = {};
+
+            expenses.forEach(item => {
+                const category = item.category || "Other";
+                categoryTotals[category] =
+                    (categoryTotals[category] || 0) +
+                    Number(item.amount);
+            });
+
+            const categoryList =
+                document.getElementById("category-totals");
+
+            categoryList.replaceChildren();
+
+            if (Object.keys(categoryTotals).length === 0) {
+                categoryList.textContent = "No expenses yet.";
+            } else {
+                Object.entries(categoryTotals)
+                    .sort((a, b) => b[1] - a[1])
+                    .forEach(([category, amount]) => {
+                        const row = document.createElement("div");
+                        row.className = "category-row";
+
+                        const name = document.createElement("span");
+                        name.textContent = category;
+
+                        const value = document.createElement("strong");
+                        value.style.marginLeft = "24px";
+                        value.textContent = amount.toLocaleString(
+                            "en-IN",
+                            { style: "currency", currency: "INR" }
+                        );
+
+                        row.append(name, value);
+                        categoryList.append(row);
+                    });
+            }
+
+            document.getElementById("total").textContent =
+                expenses.reduce((sum, item) => sum + item.amount, 0)
+                    .toLocaleString("en-IN", {
+                        style: "currency",
+                        currency: "INR"
+                    });
+
+            const list = document.getElementById("expenses");
+            list.replaceChildren();
+
+            if (expenses.length === 0) {
+                list.textContent = "No expenses added yet.";
+                return;
+            }
+
+            expenses.forEach(item => {
+                const row = document.createElement("div");
+                row.className = "expense";
+
+                const details = document.createElement("div");
+                const name = document.createElement("strong");
+                name.textContent = item.title;
+
+                const category = document.createElement("small");
+                category.textContent =
+    `${item.category} • ${item.expense_date || "Date not available"}`;
+
+                
+const amount = document.createElement("div");
+amount.textContent = Number(item.amount).toLocaleString(
+    "en-IN", { style: "currency", currency: "INR" }
+);
+
+const deleteButton = document.createElement("button");
+deleteButton.textContent = "Delete";
+
+deleteButton.addEventListener("click", async () => {
+    if (!confirm(`Delete "${item.title}"?`)) return;
+
+    try {
+        const response = await fetch(
+            `${API}/expenses/${item.id}`,
+            { method: "DELETE" }
+        );
+
+        if (!response.ok) {
+            throw new Error("Delete failed");
+        }
+
+        await loadExpenses();
+        statusBox.textContent = "Expense deleted successfully.";
+    } catch (error) {
+        statusBox.textContent = "Unable to delete expense.";
+    }
+});
+
+const rightSide = document.createElement("div");
+rightSide.style.display = "flex";
+rightSide.style.alignItems = "center";
+rightSide.style.gap = "10px";
+rightSide.append(amount, deleteButton);
+
+details.append(name, category);
+row.append(details, rightSide);
+list.append(row);
+            });
+        }
+
+
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+            addButton.disabled = true;
+            statusBox.textContent = "Saving expense...";
+
+            try {
+                const response = await fetch(`${API}/expenses`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        title: document.getElementById("title").value.trim(),
+                        category: document.getElementById("category").value,
+                        amount: Number(document.getElementById("amount").value),
+                        expense_date: document.getElementById("expense-date").value,
+                    })
+                });
+
+                if (!response.ok) throw new Error("Could not save expense.");
+
+                await response.json();
+                form.reset();
+                await loadExpenses();
+                statusBox.textContent = "Expense added successfully.";
+            } catch (error) {
+                statusBox.textContent =
+                    "Unable to connect to the API. Check that FastAPI is running.";
+            } finally {
+                addButton.disabled = false;
+            }
+        });
+
+        loadExpenses().catch(() => {
+            document.getElementById("expenses").textContent =
+                "Could not load expenses. Check that FastAPI is running.";
+            statusBox.textContent = "Connection failed.";
+        });
+    </script>
+</body>
+</html>
