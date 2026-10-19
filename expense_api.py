@@ -10,7 +10,9 @@ app = FastAPI(title="Expense Tracker API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["null"],
+    allow_origins=[
+    "https://expense-tracker-sigma-two-50.vercel.app"
+],
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
