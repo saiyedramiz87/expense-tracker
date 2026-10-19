@@ -1,0 +1,9 @@
+web_expenses.json
+__pycache__/
+.venv/
+.env
+*
+!.gitignore
+!index.html
+!expense_api.py
+!requirements.txt
